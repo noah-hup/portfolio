@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project | Noah Hupfeld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="project.css">
+</head>
+<body>
+
+  <canvas id="noise-canvas" aria-hidden="true"></canvas>
+  <div class="scanline" aria-hidden="true"></div>
+  <div class="orb orb-1" aria-hidden="true"></div>
+  <div class="orb orb-2" aria-hidden="true"></div>
+  <div class="orb orb-3" aria-hidden="true"></div>
+
+  <!-- Fixed nav -->
+  <nav class="project-nav" id="project-nav">
+    <a href="index.html" class="nav-back">
+      <span class="nav-back-arrow">←</span>
+      <span>Back</span>
+    </a>
+    <span class="nav-project-title" id="nav-project-title"></span>
+  </nav>
+
+  <!-- Hero -->
+  <header class="proj-hero" id="proj-hero">
+    <div class="proj-hero-inner">
+      <div class="proj-meta-row" id="proj-meta-row"></div>
+      <h1 class="proj-title" id="proj-title"></h1>
+      <p class="proj-desc" id="proj-desc"></p>
+      <div class="proj-tag-row" id="proj-tag-row"></div>
+      <div class="proj-links" id="proj-links"></div>
+    </div>
+  </header>
+
+  <!-- Cover image -->
+  <div class="proj-cover-wrap" id="proj-cover-wrap"></div>
+
+  <!-- Content blocks -->
+  <main class="proj-content" id="proj-content"></main>
+
+  <footer class="site-footer">© 2025 Noah Hupfeld</footer>
+
+  <script src="grain.js"></script>
+  <script src="portfolio-data.js"></script>
+  <script>
+    /* ── Resolve project from ?slug= ── */
+    const params = new URLSearchParams(location.search);
+    const slug = params.get('slug');
+    const project = DATA.projects.find(p => p.slug === slug);
+
+    if (!project) {
+      document.querySelector('.proj-hero-inner').innerHTML =
+        '<p style="color:rgba(160,220,235,0.4);font-size:0.8rem;letter-spacing:0.1em;text-transform:uppercase">Project not found.</p>';
+    } else {
+      document.title = project.title + ' | Noah Hupfeld';
+
+      /* Nav title */
+      document.getElementById('nav-project-title').textContent = project.title;
+
+      /* Meta row */
+      const metaRow = document.getElementById('proj-meta-row');
+      if (project.period) {
+        const period = document.createElement('span');
+        period.className = 'proj-meta-chip';
+        period.textContent = project.period;
+        metaRow.appendChild(period);
+      }
+      if (project.type) {
+        const type = document.createElement('span');
+        type.className = 'proj-meta-chip proj-meta-type';
+        type.textContent = project.type;
+        metaRow.appendChild(type);
+      }
+
+      /* Title + desc */
+      document.getElementById('proj-title').textContent = project.title;
+      document.getElementById('proj-desc').textContent = project.desc || '';
+
+      /* Tags */
+      const tagRow = document.getElementById('proj-tag-row');
+      (project.tags || []).forEach(t => {
+        const s = document.createElement('span');
+        s.className = 'tag';
+        s.textContent = t;
+        tagRow.appendChild(s);
+      });
+
+      /* Links */
+      const linksEl = document.getElementById('proj-links');
+      (project.links || []).forEach(l => {
+        const a = document.createElement('a');
+        a.href = l.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'proj-link-btn';
+        a.textContent = l.label;
+        linksEl.appendChild(a);
+      });
+
+      /* Cover */
+      const coverWrap = document.getElementById('proj-cover-wrap');
+      if (project.cover) {
+        const img = document.createElement('img');
+        img.src = project.cover;
+        img.alt = project.title;
+        img.className = 'proj-cover-img';
+        coverWrap.appendChild(img);
+      } else {
+        coverWrap.classList.add('proj-cover-empty');
+      }
+
+      /* Content blocks */
+      const content = document.getElementById('proj-content');
+      (project.content || []).forEach(block => {
+        const el = renderBlock(block);
+        if (el) content.appendChild(el);
+      });
+    }
+
+    function renderBlock(block) {
+      switch (block.type) {
+
+        case 'text': {
+          const wrap = document.createElement('div');
+          wrap.className = 'proj-block proj-block-text';
+          if (block.heading) {
+            const h = document.createElement('h2');
+            h.className = 'proj-block-heading';
+            h.textContent = block.heading;
+            wrap.appendChild(h);
+          }
+          if (block.body) {
+            const p = document.createElement('p');
+            p.className = 'proj-block-body';
+            p.innerHTML = block.body;
+            wrap.appendChild(p);
+          }
+          return wrap;
+        }
+
+        case 'image': {
+          const wrap = document.createElement('figure');
+          wrap.className = 'proj-block proj-block-image' + (block.wide ? ' wide' : '');
+          const img = document.createElement('img');
+          img.src = block.src;
+          img.alt = block.caption || '';
+          img.loading = 'lazy';
+          wrap.appendChild(img);
+          if (block.caption) {
+            const cap = document.createElement('figcaption');
+            cap.textContent = block.caption;
+            wrap.appendChild(cap);
+          }
+          return wrap;
+        }
+
+        case 'gallery': {
+          const wrap = document.createElement('div');
+          wrap.className = 'proj-block proj-block-gallery';
+          (block.images || []).forEach(item => {
+            const fig = document.createElement('figure');
+            const img = document.createElement('img');
+            img.src = typeof item === 'string' ? item : item.src;
+            img.alt = typeof item === 'string' ? '' : (item.caption || '');
+            img.loading = 'lazy';
+            fig.appendChild(img);
+            if (typeof item === 'object' && item.caption) {
+              const cap = document.createElement('figcaption');
+              cap.textContent = item.caption;
+              fig.appendChild(cap);
+            }
+            wrap.appendChild(fig);
+          });
+          return wrap;
+        }
+
+        case 'video': {
+          const wrap = document.createElement('figure');
+          wrap.className = 'proj-block proj-block-video' + (block.wide ? ' wide' : '');
+          if (block.embed) {
+            const iframe = document.createElement('iframe');
+            iframe.src = block.embed;
+            iframe.allow = 'autoplay; fullscreen';
+            iframe.allowFullscreen = true;
+            wrap.appendChild(iframe);
+          } else if (block.src) {
+            const video = document.createElement('video');
+            video.src = block.src;
+            video.controls = true;
+            video.loop = !!block.loop;
+            video.muted = !!block.muted;
+            video.autoplay = !!block.autoplay;
+            wrap.appendChild(video);
+          }
+          if (block.caption) {
+            const cap = document.createElement('figcaption');
+            cap.textContent = block.caption;
+            wrap.appendChild(cap);
+          }
+          return wrap;
+        }
+
+        case 'stats': {
+          const wrap = document.createElement('div');
+          wrap.className = 'proj-block proj-block-stats';
+          (block.items || []).forEach(item => {
+            const cell = document.createElement('div');
+            cell.className = 'proj-stat';
+            cell.innerHTML = `<span class="proj-stat-value">${item.value}</span><span class="proj-stat-label">${item.label}</span>`;
+            wrap.appendChild(cell);
+          });
+          return wrap;
+        }
+
+        case 'code': {
+          const wrap = document.createElement('div');
+          wrap.className = 'proj-block proj-block-code';
+          if (block.label) {
+            const label = document.createElement('span');
+            label.className = 'proj-code-label';
+            label.textContent = block.label;
+            wrap.appendChild(label);
+          }
+          const pre = document.createElement('pre');
+          const code = document.createElement('code');
+          code.textContent = block.code;
+          pre.appendChild(code);
+          wrap.appendChild(pre);
+          return wrap;
+        }
+
+        case 'divider': {
+          const hr = document.createElement('div');
+          hr.className = 'proj-block proj-block-divider';
+          return hr;
+        }
+
+        default:
+          return null;
+      }
+    }
+
+    /* ── Nav shrink on scroll ── */
+    const projNav = document.getElementById('project-nav');
+    window.addEventListener('scroll', () => {
+      projNav.classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
+  </script>
+</body>
+</html>

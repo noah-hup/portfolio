@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photography | Noah Hupfeld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="project.css">
+<link rel="stylesheet" href="photography.css">
+</head>
+<body>
+
+  <canvas id="noise-canvas" aria-hidden="true"></canvas>
+  <div class="scanline" aria-hidden="true"></div>
+  <div class="orb orb-1" aria-hidden="true"></div>
+  <div class="orb orb-2" aria-hidden="true"></div>
+  <div class="orb orb-3" aria-hidden="true"></div>
+
+  <!-- Fixed nav -->
+  <nav class="project-nav" id="project-nav">
+    <a href="index.html#about" class="nav-back">
+      <span class="nav-back-arrow">←</span>
+      <span>Back</span>
+    </a>
+    <span class="nav-project-title">Photography</span>
+  </nav>
+
+  <!-- Hero -->
+  <header class="photo-hero">
+    <div class="photo-hero-inner">
+      <span class="photo-hero-kicker">Visual</span>
+      <h1 class="photo-hero-title">Photography</h1>
+      <p class="photo-hero-desc">A collection of moments.</p>
+    </div>
+  </header>
+
+  <!-- Masonry / grid -->
+  <main class="photo-main" id="photo-main"></main>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" aria-hidden="true">
+    <button class="lightbox-close" id="lightbox-close" aria-label="Close">✕</button>
+    <button class="lightbox-prev" id="lightbox-prev" aria-label="Previous">←</button>
+    <button class="lightbox-next" id="lightbox-next" aria-label="Next">→</button>
+    <div class="lightbox-img-wrap">
+      <img class="lightbox-img" id="lightbox-img" src="" alt="">
+    </div>
+    <div class="lightbox-counter" id="lightbox-counter"></div>
+  </div>
+
+  <footer class="site-footer">© 2025 Noah Hupfeld</footer>
+
+  <script src="grain.js"></script>
+  <script src="portfolio-data.js"></script>
+  <script>
+    /* ── Normalise entries: always { src, aspect? } ── */
+    const photos = DATA.about.photography.map(e =>
+      typeof e === 'string' ? { src: e } : e
+    );
+
+    const GAP = 10; // px between tiles
+    const container = document.getElementById('photo-main');
+
+    /* ── Column count based on viewport ── */
+    function colCount() {
+      const w = container.clientWidth;
+      if (w >= 900) return 3;
+      if (w >= 520) return 2;
+      return 1;
+    }
+
+    /* ── Build tiles (DOM), resolve aspect ratios, then layout ── */
+    const tiles = photos.map((entry, i) => {
+      const div = document.createElement('div');
+      div.className = 'photo-tile';
+      div.style.animationDelay = (0.04 + i * 0.06) + 's';
+      div.style.position = 'absolute';
+      const img = document.createElement('img');
+      img.src = entry.src;
+      img.alt = 'Photo ' + (i + 1);
+      img.loading = 'lazy';
+      div.appendChild(img);
+      div.addEventListener('click', () => openLightbox(i));
+      container.appendChild(div);
+      return { div, entry, aspect: entry.aspect || null };
+    });
+
+    /* ── Resolve aspect ratios for tiles that need auto-detection ── */
+    let pending = tiles.filter(t => t.aspect === null).length;
+
+    function tryLayout() {
+      if (pending > 0) return; // wait until all aspects known
+      layout();
+    }
+
+    tiles.forEach(t => {
+      if (t.aspect !== null) return;
+      const img = t.div.querySelector('img');
+      if (img.complete && img.naturalWidth) {
+        t.aspect = img.naturalWidth / img.naturalHeight;
+        pending--;
+        tryLayout();
+      } else {
+        img.addEventListener('load', () => {
+          t.aspect = img.naturalWidth / img.naturalHeight || 1;
+          pending--;
+          tryLayout();
+        });
+        img.addEventListener('error', () => {
+          t.aspect = 1;
+          pending--;
+          tryLayout();
+        });
+      }
+    });
+
+    /* If all aspects were pre-declared, layout immediately */
+    if (pending === 0) layout();
+
+    /* ── Column-packing layout (shortest-column) ── */
+    function layout() {
+      const cols = colCount();
+      const totalW = container.clientWidth;
+      const colW = (totalW - GAP * (cols - 1)) / cols;
+
+      // Track the current fill height of each column
+      const colHeights = Array(cols).fill(0);
+
+      tiles.forEach(t => {
+        // Pick the shortest column
+        let shortest = 0;
+        for (let c = 1; c < cols; c++) {
+          if (colHeights[c] < colHeights[shortest]) shortest = c;
+        }
+
+        const aspect = t.aspect || 1;
+        const h = colW / aspect;
+        const x = shortest * (colW + GAP);
+        const y = colHeights[shortest];
+
+        t.div.style.left   = x + 'px';
+        t.div.style.top    = y + 'px';
+        t.div.style.width  = colW + 'px';
+        t.div.style.height = h + 'px';
+
+        colHeights[shortest] += h + GAP;
+      });
+
+      // Set container height to tallest column
+      container.style.height = Math.max(...colHeights) + 'px';
+    }
+
+    /* ── Re-layout on resize ── */
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { if (pending === 0) layout(); }, 120);
+    }, { passive: true });
+
+    /* ── Nav shrink on scroll ── */
+    const projNav = document.getElementById('project-nav');
+    window.addEventListener('scroll', () => {
+      projNav.classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
+
+    /* ── Scroll-driven fly-in/out per tile ── */
+    const FADE_ZONE  = 180; // px from viewport edge where transition starts
+    const MAX_SHIFT  = 14;  // px of translateY at the edge
+    const MAX_FADE   = 0.5; // opacity at the edge (fully visible = 0.82)
+
+    function easeInOut(x) {
+      return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+    }
+
+    function updateTileVisibility() {
+      const vTop    = window.scrollY;
+      const vBottom = vTop + window.innerHeight;
+      const contTop = container.offsetTop;
+
+      tiles.forEach(t => {
+        const el      = t.div;
+        const tTop    = parseFloat(el.style.top)    + contTop;
+        const tBottom = tTop + parseFloat(el.style.height || 0);
+
+        // raw progress: 0 = edge, 1 = fully inside
+        const fromTop    = tTop    - vTop;
+        const fromBottom = vBottom - tBottom;
+
+        let progress = 1;
+        let dir = 0; // -1 top edge, +1 bottom edge
+
+        if (fromBottom < FADE_ZONE && fromBottom > -parseFloat(el.style.height || FADE_ZONE)) {
+          const p = Math.max(0, fromBottom / FADE_ZONE);
+          if (p < progress) { progress = p; dir = 1; }
+        }
+        if (fromTop < FADE_ZONE && fromTop > -parseFloat(el.style.height || FADE_ZONE)) {
+          const p = Math.max(0, fromTop / FADE_ZONE);
+          if (p < progress) { progress = p; dir = -1; }
+        }
+
+        const eased   = easeInOut(progress);
+        const opacity = MAX_FADE + eased * (0.82 - MAX_FADE);
+        const shift   = dir * (1 - eased) * MAX_SHIFT;
+
+        el.style.opacity   = opacity.toFixed(3);
+        el.style.transform = shift ? `translateY(${shift.toFixed(2)}px)` : '';
+      });
+    }
+
+    function scrollLoop() {
+      updateTileVisibility();
+      requestAnimationFrame(scrollLoop);
+    }
+    requestAnimationFrame(scrollLoop);
+
+    /* ── Lightbox ── */
+    let current = 0;
+    const lightbox  = document.getElementById('lightbox');
+    const lbImg     = document.getElementById('lightbox-img');
+    const lbCounter = document.getElementById('lightbox-counter');
+
+    function openLightbox(i) {
+      current = i;
+      lbImg.src = photos[i].src;
+      lbCounter.textContent = (i + 1) + ' / ' + photos.length;
+      lightbox.classList.add('open');
+      lightbox.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    function showPrev() { openLightbox((current - 1 + photos.length) % photos.length); }
+    function showNext() { openLightbox((current + 1) % photos.length); }
+
+    document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+    document.getElementById('lightbox-prev').addEventListener('click', showPrev);
+    document.getElementById('lightbox-next').addEventListener('click', showNext);
+
+    lightbox.addEventListener('click', e => {
+      if (e.target === lightbox) closeLightbox();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (!lightbox.classList.contains('open')) return;
+      if (e.key === 'Escape')      closeLightbox();
+      if (e.key === 'ArrowLeft')   showPrev();
+      if (e.key === 'ArrowRight')  showNext();
+    });
+  </script>
+</body>
+</html>

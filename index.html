@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noah Hupfeld | Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Static noise -->
+  <canvas id="noise-canvas" aria-hidden="true"></canvas>
+
+  <!-- Scan lines -->
+  <div class="scanline" aria-hidden="true"></div>
+
+  <!-- Ambient orbs -->
+  <div class="orb orb-1" aria-hidden="true"></div>
+  <div class="orb orb-2" aria-hidden="true"></div>
+  <div class="orb orb-3" aria-hidden="true"></div>
+
+  <!-- Floating particles -->
+  <div class="bg-particles" aria-hidden="true">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero" id="hero">
+    <nav>
+      <div class="nav-left">
+        <a href="#resume">Resume</a>
+        <a href="#projects">Projects</a>
+        <a href="#about">About</a>
+      </div>
+      <div class="nav-right">
+        <a href="mailto:noah.hupfeld@gmail.com">Mail</a>
+        <a href="https://www.instagram.com/noah.hup/" target="_blank" rel="noopener noreferrer">Instagram</a>
+      </div>
+    </nav>
+
+    <div class="name-hero">
+      <p class="name-kicker">Portfolio</p>
+      <h1 class="name-title-wrap" id="name-title">
+        <span class="name-title name-line" data-text="Noah"></span><br>
+        <span class="name-title name-line" data-text="Hupfeld"></span>
+      </h1>
+      <p class="name-hint">↓ &nbsp; scroll</p>
+    </div>
+
+    <div class="bottom-nav">
+      <a href="#resume">Resume</a>
+      <a href="#projects">Projects</a>
+      <a href="#about">About</a>
+    </div>
+  </section>
+
+  <!-- ── Resume ── -->
+  <section class="page-section" id="resume">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-kicker">01</span>
+        <h2 class="section-title">Resume</h2>
+      </div>
+      <div class="resume-list" id="resume-list"></div>
+    </div>
+  </section>
+
+  <!-- ── Projects ── -->
+  <section class="page-section" id="projects">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-kicker">02</span>
+        <h2 class="section-title">Projects</h2>
+      </div>
+      <div class="projects-grid" id="projects-grid"></div>
+    </div>
+  </section>
+
+  <!-- ── About ── -->
+  <section class="page-section" id="about">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-kicker">03</span>
+        <h2 class="section-title">About</h2>
+      </div>
+      <div class="about-body">
+        <p class="about-bio" id="about-bio"></p>
+        <div class="photo-grid" id="photo-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">© 2025 Noah Hupfeld</footer>
+
+  <script src="blob.js"></script>
+  <script src="grain.js"></script>
+  <script src="portfolio-data.js"></script>
+  <script>
+    /* ── Split letters & stagger reveal ── */
+    document.querySelectorAll('.name-line').forEach(line => {
+      const text = line.dataset.text;
+      line.innerHTML = text.split('').map(ch =>
+        `<span class="name-letter">${ch}</span>`
+      ).join('');
+    });
+
+    const letters = document.querySelectorAll('.name-letter');
+    const lastLetter = letters[letters.length - 1];
+
+    // Stagger the load animation delays
+    letters.forEach((el, i) => {
+      el.style.animationDelay = (0.3 + i * 0.06) + 's';
+    });
+
+    /* ── Mouse repulsion ── */
+    const strength = 500, radius = 300, decay = 0.18, maxForce = 2, minDist = 20;
+    const state = Array.from(letters).map(() => ({ x: 0, y: 0, vx: 0, vy: 0 }));
+    let mouse = { x: -9999, y: -9999 };
+    let loadDone = false; // true once the entry animation has finished
+
+    document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    document.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+
+    /* ── After load animation ends, hand off to JS fully ── */
+    lastLetter.addEventListener('animationend', () => {
+      letters.forEach(el => {
+        el.style.animation = 'none'; // kill CSS animation so it can't fight inline styles
+        el.style.opacity   = '1';
+        el.style.filter    = 'blur(0px)';
+      });
+      loadDone = true;
+    }, { once: true });
+
+    /* ── Scroll setup ── */
+    const nameHero   = document.querySelector('.name-hero');
+    const nameKicker = nameHero.querySelector('.name-kicker');
+    const nameHint   = nameHero.querySelector('.name-hint');
+    const mid = (letters.length - 1) / 2;
+
+
+    /* Replay the reveal animation when scrolling back to top */
+    function onScroll() {
+      if (!loadDone) return;
+
+      const t = Math.min(window.scrollY / (window.innerHeight * 0.7), 1);
+
+      // Parallax
+      nameHero.style.transform = `translateY(${-t * 60}px)`;
+
+      // Kicker + hint
+      nameKicker.style.opacity = Math.max(0, 1 - t * 2.5);
+      nameHint.style.opacity   = Math.max(0, 1 - t * 2.5);
+
+      // Letters: dissolve outward from centre
+      letters.forEach((el, i) => {
+        const d = mid > 0 ? Math.abs(i - mid) / mid : 0;
+        el.style.opacity = Math.max(0, 1 - t * (0.6 + d * 0.7));
+        el.style.filter  = `blur(${t * (2 + d * 10)}px)`;
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    /* ── RAF: physics + scroll-driven spread/scale ── */
+    function animate() {
+      const t      = Math.min(window.scrollY / (window.innerHeight * 0.7), 1);
+      const scale  = 1 + t * 0.18;
+      const spread = t * 0.22;
+
+      letters.forEach((el, i) => {
+        const rect = el.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top  + rect.height / 2;
+        const dx = cx - mouse.x, dy = cy - mouse.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDist) dist = minDist;
+        let fx = 0, fy = 0;
+        if (dist < radius) {
+          let force = Math.min(strength / (dist * dist), maxForce);
+          fx = (dx / dist) * force;
+          fy = (dy / dist) * force;
+        }
+        const s = state[i];
+        s.vx = (s.vx + fx) * 0.82; s.vy = (s.vy + fy) * 0.82;
+        s.vx -= s.x * decay;        s.vy -= s.y * decay;
+        s.x += s.vx;                s.y += s.vy;
+
+        const offsetX = (i - mid) * spread * 1.4 * 16;
+        el.style.transform = `translate(${s.x + offsetX}px, ${s.y}px) scale(${scale})`;
+      });
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    /* ── Pin bottom-nav pill once hero scrolls off ── */
+    const bottomNav = document.querySelector('.bottom-nav');
+    const heroEl = document.getElementById('hero');
+    let isPinned = false;
+    let unpinTimer = null;
+
+    function updateBottomNav() {
+      const heroBottom = heroEl.getBoundingClientRect().bottom;
+      const shouldPin = heroBottom <= 0;
+
+      if (shouldPin && !isPinned) {
+        // Cancel any pending unpin
+        if (unpinTimer) { clearTimeout(unpinTimer); unpinTimer = null; }
+        bottomNav.classList.remove('unpinning');
+        bottomNav.classList.add('pinned');
+        isPinned = true;
+      } else if (!shouldPin && isPinned) {
+        // Play exit animation, then remove pinned
+        bottomNav.classList.add('unpinning');
+        unpinTimer = setTimeout(() => {
+          bottomNav.classList.remove('pinned', 'unpinning');
+          unpinTimer = null;
+        }, 350);
+        isPinned = false;
+      }
+    }
+    window.addEventListener('scroll', updateBottomNav, { passive: true });
+
+    /* ── Nav active state on scroll ── */
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.bottom-nav a, nav a');
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          navLinks.forEach(a => {
+            a.classList.toggle('active', a.getAttribute('href') === '#' + entry.target.id);
+          });
+        }
+      });
+    }, { threshold: 0.5 });
+    sections.forEach(s => observer.observe(s));
+
+    /* ── Render Resume ── */
+    const resumeList = document.getElementById('resume-list');
+    DATA.resume.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = 'resume-item';
+      el.style.animationDelay = (i * 0.1) + 's';
+      el.innerHTML = `
+        <div class="resume-meta">
+          <span class="resume-period">${item.period}</span>
+          <span class="resume-type-badge">${item.type === 'experience' ? 'Experience' : 'Education'}</span>
+        </div>
+        <div class="resume-content">
+          <h3 class="resume-title">${item.title}</h3>
+          <p class="resume-org">${item.org}${item.location ? ' · ' + item.location : ''}</p>
+          <p class="resume-desc">${item.desc}</p>
+          ${item.tags ? `<div class="tag-row">${item.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
+        </div>`;
+      resumeList.appendChild(el);
+    });
+
+    /* ── Render Projects ── */
+    const projectsGrid = document.getElementById('projects-grid');
+    DATA.projects.forEach((p, i) => {
+      const el = document.createElement(p.slug ? 'a' : 'div');
+      el.className = 'project-card';
+      if (p.slug) {
+        el.href = `project.html?slug=${p.slug}`;
+        el.style.textDecoration = 'none';
+        el.style.color = 'inherit';
+        el.style.cursor = 'pointer';
+      }
+      el.style.animationDelay = (i * 0.12) + 's';
+      el.innerHTML = `
+        <div class="project-cover">
+          <img src="${p.cover}" alt="${p.title}" loading="lazy" onerror="this.parentElement.classList.add('no-cover')">
+          <span class="project-type-badge">${p.type}</span>
+        </div>
+        <div class="project-body">
+          <div class="project-header">
+            <h3 class="project-title">${p.title}</h3>
+            <span class="project-period">${p.period}</span>
+          </div>
+          <p class="project-desc">${p.desc}</p>
+          <div class="tag-row">${p.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+        </div>`;
+      projectsGrid.appendChild(el);
+    });
+
+    /* ── Render About ── */
+    document.getElementById('about-bio').textContent = DATA.about.bio;
+    const hobbyCardsContainer = document.createElement('div');
+    hobbyCardsContainer.className = 'hobby-cards';
+
+    // Photography card
+    const photoCard = document.createElement('a');
+    photoCard.className = 'hobby-card';
+    photoCard.href = 'photography.html';
+    photoCard.style.textDecoration = 'none';
+    photoCard.style.color = 'inherit';
+    photoCard.style.display = 'block';
+    photoCard.innerHTML = `
+      <div class="hobby-card-header">
+        <span class="hobby-card-title">Photography</span>
+        <span class="hobby-card-kicker">Visual</span>
+        <span class="hobby-card-arrow">↗</span>
+      </div>`;
+    hobbyCardsContainer.appendChild(photoCard);
+
+    document.getElementById('photo-grid')?.remove();
+    document.querySelector('.about-body').appendChild(hobbyCardsContainer);
+  </script>
+</body>
+</html>
