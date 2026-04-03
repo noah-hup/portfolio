@@ -8,6 +8,7 @@ html {
   width: 100%;
   background: #0b0c0d;
   scroll-behavior: smooth;
+  color-scheme: dark;
 }
 
 body {
@@ -230,6 +231,8 @@ nav a:hover { color: rgba(200, 235, 242, 0.85); }
 
 .name-title-wrap {
   line-height: 1;
+  text-align: center;
+  width: 100%;
 }
 
 .name-title {
@@ -299,6 +302,7 @@ nav a:hover { color: rgba(200, 235, 242, 0.85); }
   align-items: flex-start;
   justify-content: center;
   padding: 7rem 2.5rem 6rem;
+  background: transparent;
 }
 
 .section-inner {
@@ -646,6 +650,11 @@ nav a:hover { color: rgba(200, 235, 242, 0.85); }
 @media (max-width: 640px) {
   .hero {
     padding: 1.25rem 1.25rem 1.5rem;
+  }
+
+  /* Shift name up by ~half the nav height so it aligns with the blob center */
+  .name-hero {
+    margin-bottom: 2.5rem;
   }
 
   nav .nav-left,
