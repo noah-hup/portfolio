@@ -17,7 +17,7 @@ html {
 
 body {
   width: 100%;
-  background: #0b0c0d;
+  background: #101010;
   color: #e8eef2;
   font-family: 'Space Grotesk', sans-serif;
   overflow-x: hidden;
@@ -456,12 +456,13 @@ nav a:hover { color: rgba(200, 235, 242, 0.85); }
   flex-direction: column;
   opacity: 0;
   animation: fadeUp 0.7s both;
-  transition: border-color 0.25s, background 0.25s;
+  transition: border-color 0.25s, background 0.25s, filter 0.3s;
 }
 
 .project-card:hover {
   border-color: rgba(160, 220, 235, 0.18);
   background: rgba(140, 210, 230, 0.055);
+  filter: brightness(1.05);
 }
 
 .project-cover {
@@ -476,11 +477,9 @@ nav a:hover { color: rgba(200, 235, 242, 0.85); }
   height: 100%;
   object-fit: cover;
   display: block;
-  opacity: 0.75;
-  transition: opacity 0.3s;
 }
 
-.project-card:hover .project-cover img { opacity: 0.9; }
+.project-card:hover .project-cover img { transform: scale(1); }
 
 .project-cover.no-cover {
   background: repeating-linear-gradient(
@@ -703,4 +702,71 @@ nav a:hover { color: rgba(200, 235, 242, 0.85); }
   .page-section {
     padding: 4rem 1.25rem 3rem;
   }
+}
+
+/* ════════════════════════════════
+   SCROLL-IN SECTION NAV (index)
+════════════════════════════════ */
+
+@keyframes bottomNavIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes bottomNavOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(8px); }
+}
+
+.bottom-nav {
+  position: fixed;
+  right: 1.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
+}
+
+.bottom-nav.pinned {
+  visibility: visible;
+  pointer-events: all;
+  animation: bottomNavIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bottom-nav.unpinning {
+  visibility: visible;
+  animation: bottomNavOut 0.3s ease forwards;
+  pointer-events: none;
+}
+
+.bottom-nav-item {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.55rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(200, 235, 245, 0.55);
+  text-decoration: none;
+  padding: 0.25rem 0;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+
+.bottom-nav-item:hover {
+  color: rgba(220, 245, 255, 0.9);
+}
+
+.bottom-nav-item.active {
+  color: rgba(220, 245, 255, 0.95);
+}
+
+@media (max-width: 600px) {
+  .bottom-nav { right: 1rem; }
 }

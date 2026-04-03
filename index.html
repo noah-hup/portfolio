@@ -43,7 +43,7 @@
       <div class="nav-left">
         <a href="#resume">Resume</a>
         <a href="#projects">Projects</a>
-        <a href="#about">About Me</a>
+        <a href="#about">Interests</a>
       </div>
       <div class="nav-right">
         <a href="mailto:noah.hupfeld@gmail.com">Mail</a>
@@ -88,7 +88,7 @@
     <div class="section-inner">
       <div class="section-header">
         <span class="section-kicker">03</span>
-        <h2 class="section-title">About Me</h2>
+        <h2 class="section-title">Interests</h2>
       </div>
       <div class="about-body">
         <p class="about-bio" id="about-bio"></p>
@@ -96,6 +96,13 @@
       </div>
     </div>
   </section>
+
+  <!-- Scroll-in section nav -->
+  <nav class="bottom-nav" aria-label="Sections">
+    <a class="bottom-nav-item" href="#resume">Resume</a>
+    <a class="bottom-nav-item" href="#projects">Projects</a>
+    <a class="bottom-nav-item" href="#about">Interests</a>
+  </nav>
 
   <footer class="site-footer">© 2026 Noah Hupfeld</footer>
 
@@ -201,22 +208,22 @@
     }
     animate();
 
-    /* ── Pin bottom-nav pill once hero scrolls off ── */
+    /* ── Pin bottom-nav once hero scrolls off ── */
     const bottomNav = document.querySelector('.bottom-nav');
-    const heroEl = document.getElementById('hero');
-    let isPinned = false;
-    let unpinTimer = null;
+    const navLinks  = bottomNav.querySelectorAll('.bottom-nav-item');
+    const heroEl    = document.getElementById('hero');
+    let isPinned    = false;
+    let unpinTimer  = null;
 
     function updateBottomNav() {
       const heroBottom = heroEl.getBoundingClientRect().bottom;
-      const shouldPin = heroBottom <= 0;
+      const shouldPin  = heroBottom <= 0;
 
       if (shouldPin && !isPinned) {
-        // Cancel any pending unpin
         if (unpinTimer) { clearTimeout(unpinTimer); unpinTimer = null; }
+        bottomNav.classList.add('pinned');
         isPinned = true;
       } else if (!shouldPin && isPinned) {
-        // Play exit animation, then remove pinned
         bottomNav.classList.add('unpinning');
         unpinTimer = setTimeout(() => {
           bottomNav.classList.remove('pinned', 'unpinning');
@@ -302,7 +309,7 @@
     photoCard.style.display = 'block';
     photoCard.innerHTML = `
       <div class="hobby-card-cover">
-        <img src="media/photography/swan02.jpg" alt="Photography" loading="lazy">
+        <img src="media/photography/rome/02.webp" alt="Photography" loading="lazy">
       </div>
       <div class="hobby-card-header">
         <span class="hobby-card-title">Photography</span>
