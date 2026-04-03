@@ -93,7 +93,7 @@
         vNormal   = normalize(normalMatrix * normal);
         vPosition = position;
 
-        float t  = uTime * 0.28;
+        float t  = uTime * 0.18 ;
         float n1 = snoise(position * 1.6 + vec3(t * 0.7, t * 0.5, t * 0.3));
         float n2 = snoise(position * 3.2 + vec3(-t * 0.4, t * 0.6, -t * 0.5)) * 0.4;
         float n3 = snoise(position * 6.0 + vec3(t * 0.3, -t * 0.4, t * 0.7)) * 0.15;
@@ -121,11 +121,11 @@
         float fresnel  = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.2);
 
         // Core darkness
-        vec3  darkCol  = vec3(0.02, 0.03, 0.04);   // near-black interior
-        vec3  edgeCol  = vec3(0.88, 0.92, 0.95);   // cool white edge
+        vec3  darkCol  = vec3(0.02, 0.02, 0.02);   // near-black interior
+        vec3  edgeCol  = vec3(0.4, 0.4, 0.4);   // cool white edge
 
         // Subtle warm-grey mid tones
-        vec3  midCol   = vec3(0.20, 0.22, 0.24);
+        vec3  midCol   = vec3(0.1, 0.1, 0.1);
         float midBand  = smoothstep(0.3, 0.7, fresnel) * (1.0 - smoothstep(0.7, 1.0, fresnel));
 
         vec3 col = mix(darkCol, edgeCol, fresnel * fresnel);
@@ -137,7 +137,7 @@
 
         // Surface grain: modulate brightness by high-freq noise
         float grain = vNoise * 3.0;
-        col += vec3(grain * 0.18);
+        col += vec3(grain * 0.13);
         // Scratch-like streaks in the mid zone
         float scratch = abs(vNoise) * smoothstep(0.2, 0.6, fresnel) * 0.35;
         col += vec3(scratch);
@@ -194,11 +194,8 @@
       const elapsed = clock.getElapsedTime();
       mat.uniforms.uTime.value = elapsed;
 
-      // Smooth mouse rotation
-      currentRotX += (targetMouseY - currentRotX) * 0.04;
-      currentRotY += (targetMouseX - currentRotY) * 0.04;
-      mesh.rotation.x = currentRotX;
-      mesh.rotation.y = elapsed * 0.12 + currentRotY;
+      mesh.rotation.x = 0.2;                 // fixer Winkel (optional)
+  mesh.rotation.y = elapsed * 0.05; 
 
       // Scroll-based scale-down + blur (stays visible, goes out of focus)
       const s = 1 - scrollT * 0.25;

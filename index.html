@@ -58,12 +58,6 @@
       </h1>
       <p class="name-hint">↓ &nbsp; scroll</p>
     </div>
-
-    <div class="bottom-nav">
-      <a href="#resume">Resume</a>
-      <a href="#projects">Projects</a>
-      <a href="#about">About</a>
-    </div>
   </section>
 
   <!-- ── Resume ── -->
@@ -218,8 +212,6 @@
       if (shouldPin && !isPinned) {
         // Cancel any pending unpin
         if (unpinTimer) { clearTimeout(unpinTimer); unpinTimer = null; }
-        bottomNav.classList.remove('unpinning');
-        bottomNav.classList.add('pinned');
         isPinned = true;
       } else if (!shouldPin && isPinned) {
         // Play exit animation, then remove pinned
@@ -235,7 +227,6 @@
 
     /* ── Nav active state on scroll ── */
     const sections = document.querySelectorAll('section[id]');
-    const navLinks = document.querySelectorAll('.bottom-nav a, nav a');
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
