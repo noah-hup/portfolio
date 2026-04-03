@@ -144,6 +144,8 @@
         el.style.filter    = 'blur(0px)';
       });
       loadDone = true;
+      // Seed the rect cache once letters are settled
+      updateLetterRects();
     }, { once: true });
 
     /* ── Scroll setup ── */
@@ -152,71 +154,43 @@
     const nameHint   = nameHero.querySelector('.name-hint');
     const mid = (letters.length - 1) / 2;
 
+    // Shared scroll state — read once per frame in animate(), not in multiple listeners
+    let scrollY = window.scrollY;
+    let scrollDirty = false;
+    window.addEventListener('scroll', () => { scrollY = window.scrollY; scrollDirty = true; }, { passive: true });
 
-    /* Replay the reveal animation when scrolling back to top */
-    function onScroll() {
-      if (!loadDone) return;
+    /* ── Cached letter base positions (updated on resize, not every frame) ── */
+    // We cache each letter's natural center in page coordinates.
+    // The physics offset is then added in the RAF without re-reading the DOM.
+    const letterBaseX = new Float32Array(letters.length);
+    const letterBaseY = new Float32Array(letters.length);
 
-      const t = Math.min(window.scrollY / (window.innerHeight * 0.7), 1);
-
-      // Parallax
-      nameHero.style.transform = `translateY(${-t * 60}px)`;
-
-      // Kicker + hint
-      nameKicker.style.opacity = Math.max(0, 1 - t * 2.5);
-      nameHint.style.opacity   = Math.max(0, 1 - t * 2.5);
-
-      // Letters: dissolve outward from centre
+    function updateLetterRects() {
+      // Temporarily zero out transforms so getBoundingClientRect returns natural positions
+      letters.forEach(el => { el.style.transform = ''; });
       letters.forEach((el, i) => {
-        const d = mid > 0 ? Math.abs(i - mid) / mid : 0;
-        el.style.opacity = Math.max(0, 1 - t * (0.6 + d * 0.7));
-        el.style.filter  = `blur(${t * (2 + d * 10)}px)`;
+        const r = el.getBoundingClientRect();
+        letterBaseX[i] = r.left + r.width  / 2 + scrollY; // convert to page coords
+        letterBaseY[i] = r.top  + r.height / 2 + scrollY;
       });
     }
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-
-    /* ── RAF: physics + scroll-driven spread/scale ── */
-    function animate() {
-      const t      = Math.min(window.scrollY / (window.innerHeight * 0.7), 1);
-      const scale  = 1 + t * 0.18;
-      const spread = t * 0.22;
-
-      letters.forEach((el, i) => {
-        const rect = el.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top  + rect.height / 2;
-        const dx = cx - mouse.x, dy = cy - mouse.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < minDist) dist = minDist;
-        let fx = 0, fy = 0;
-        if (dist < radius) {
-          let force = Math.min(strength / (dist * dist), maxForce);
-          fx = (dx / dist) * force;
-          fy = (dy / dist) * force;
-        }
-        const s = state[i];
-        s.vx = (s.vx + fx) * 0.82; s.vy = (s.vy + fy) * 0.82;
-        s.vx -= s.x * decay;        s.vy -= s.y * decay;
-        s.x += s.vx;                s.y += s.vy;
-
-        const offsetX = (i - mid) * spread * 1.4 * 16;
-        el.style.transform = `translate(${s.x + offsetX}px, ${s.y}px) scale(${scale})`;
-      });
-
-      requestAnimationFrame(animate);
-    }
-    animate();
+    window.addEventListener('resize', updateLetterRects, { passive: true });
 
     /* ── Pin bottom-nav once hero scrolls off ── */
     const bottomNav = document.querySelector('.bottom-nav');
     const navLinks  = bottomNav.querySelectorAll('.bottom-nav-item');
     const heroEl    = document.getElementById('hero');
+    // Cache hero height so we can derive heroBottom from scrollY without layout reads
+    let heroHeight = heroEl.offsetHeight;
+    window.addEventListener('resize', () => { heroHeight = heroEl.offsetHeight; }, { passive: true });
+
     let isPinned    = false;
     let unpinTimer  = null;
 
-    function updateBottomNav() {
-      const heroBottom = heroEl.getBoundingClientRect().bottom;
+    function updateBottomNav(sy) {
+      // heroBottom in viewport = heroHeight - sy (hero starts at top of page)
+      const heroBottom = heroHeight - sy;
       const shouldPin  = heroBottom <= 0;
 
       if (shouldPin && !isPinned) {
@@ -232,7 +206,66 @@
         isPinned = false;
       }
     }
-    window.addEventListener('scroll', updateBottomNav, { passive: true });
+
+    /* ── RAF: physics + scroll-driven spread/scale + scroll side-effects ── */
+    let cachedHeroHeightVh = window.innerHeight * 0.7;
+    window.addEventListener('resize', () => { cachedHeroHeightVh = window.innerHeight * 0.7; }, { passive: true });
+
+    function animate() {
+      const sy     = scrollY; // read shared value set by the passive scroll listener
+      const t      = Math.min(sy / cachedHeroHeightVh, 1);
+      const scale  = 1 + t * 0.18;
+      const spread = t * 0.22;
+
+      // Apply scroll-driven visual effects and nav state only when scroll changed
+      if (scrollDirty && loadDone) {
+        scrollDirty = false;
+
+        // Parallax
+        nameHero.style.transform = `translateY(${-t * 60}px)`;
+
+        // Kicker + hint
+        const kh = Math.max(0, 1 - t * 2.5);
+        nameKicker.style.opacity = kh;
+        nameHint.style.opacity   = kh;
+
+        // Letters: dissolve outward from centre
+        for (let i = 0; i < letters.length; i++) {
+          const d = mid > 0 ? Math.abs(i - mid) / mid : 0;
+          letters[i].style.opacity = Math.max(0, 1 - t * (0.6 + d * 0.7));
+          letters[i].style.filter  = `blur(${t * (2 + d * 10)}px)`;
+        }
+
+        // Bottom nav pin (no getBoundingClientRect — uses cached heroHeight)
+        updateBottomNav(sy);
+      }
+
+      // Physics loop — uses cached base positions, no DOM reads
+      for (let i = 0; i < letters.length; i++) {
+        // Convert page-coord base back to viewport-coord center
+        const cx = letterBaseX[i] - sy;
+        const cy = letterBaseY[i] - sy;
+        const dx = cx - mouse.x, dy = cy - mouse.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDist) dist = minDist;
+        let fx = 0, fy = 0;
+        if (dist < radius) {
+          const force = Math.min(strength / (dist * dist), maxForce);
+          fx = (dx / dist) * force;
+          fy = (dy / dist) * force;
+        }
+        const s = state[i];
+        s.vx = (s.vx + fx) * 0.82; s.vy = (s.vy + fy) * 0.82;
+        s.vx -= s.x * decay;        s.vy -= s.y * decay;
+        s.x += s.vx;                s.y += s.vy;
+
+        const offsetX = (i - mid) * spread * 1.4 * 16;
+        letters[i].style.transform = `translate(${s.x + offsetX}px, ${s.y}px) scale(${scale})`;
+      }
+
+      requestAnimationFrame(animate);
+    }
+    animate();
 
     /* ── Nav active state on scroll ── */
     const sections = document.querySelectorAll('section[id]');

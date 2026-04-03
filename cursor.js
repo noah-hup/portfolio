@@ -14,8 +14,6 @@
 
   const ctx = canvas.getContext('2d');
 
-  // Max connection distance per letter node — uniform so spacing feels equal
-  const LETTER_CONNECT_DIST = 220;
   // Cursor connects at a slightly wider range so it reaches letters naturally
   const CURSOR_CONNECT_DIST = 400;
   // Max connections per letter node (keeps lines sparse / readable)
@@ -32,8 +30,9 @@
   const letterPixelCache = new WeakMap();
 
   document.fonts.ready.then(() => {
-    // Bust anchor cache so glyphs are re-sampled with the correct font
-    document.querySelectorAll('.name-letter').forEach(el => letterPixelCache.delete(el));
+    // Populate letter cache and bust anchor cache so glyphs are re-sampled with the correct font
+    cachedLetters = Array.from(document.querySelectorAll('.name-letter'));
+    cachedLetters.forEach(el => letterPixelCache.delete(el));
   });
 
   document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -144,33 +143,41 @@
     ctx.stroke();
   }
 
+  // Cache the letter NodeList once after fonts load (avoids querySelectorAll every frame)
+  let cachedLetters = null;
+  document.fonts.ready.then(() => {
+    cachedLetters = Array.from(document.querySelectorAll('.name-letter'));
+  });
+
+  // Reusable candidates array — avoids allocation per frame
+  const cursorCandidates = [];
+
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (!loadDone) {
+    if (!loadDone || !cachedLetters) {
       requestAnimationFrame(draw);
       return;
     }
 
-    const letters = Array.from(document.querySelectorAll('.name-letter'));
-    const cursor = { x: mouse.x, y: mouse.y };
-    const hasCursor = mouse.x > -1000;
-
-    const n = letters.length;
+    const mx = mouse.x, my = mouse.y;
+    const hasCursor = mx > -1000;
 
     // Cursor → letters
     if (hasCursor) {
-      const cursorCandidates = [];
-      for (let i = 0; i < n; i++) {
-        const ep = getLetterEdgePoint(letters[i], cursor.x, cursor.y);
-        const dx = ep.x - cursor.x, dy = ep.y - cursor.y;
+      cursorCandidates.length = 0;
+      for (let i = 0, n = cachedLetters.length; i < n; i++) {
+        const ep = getLetterEdgePoint(cachedLetters[i], mx, my);
+        const dx = ep.x - mx, dy = ep.y - my;
         const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < CURSOR_CONNECT_DIST) cursorCandidates.push({ i, d, ep });
+        if (d < CURSOR_CONNECT_DIST) cursorCandidates.push({ d, ep });
       }
       cursorCandidates.sort((a, b) => a.d - b.d);
-      cursorCandidates.slice(0, MAX_EDGES_PER_NODE).forEach(({ d, ep }) => {
-        drawLine(cursor.x, cursor.y, ep.x, ep.y, d, CURSOR_CONNECT_DIST);
-      });
+      const limit = Math.min(cursorCandidates.length, MAX_EDGES_PER_NODE);
+      for (let i = 0; i < limit; i++) {
+        const { d, ep } = cursorCandidates[i];
+        drawLine(mx, my, ep.x, ep.y, d, CURSOR_CONNECT_DIST);
+      }
     }
 
     requestAnimationFrame(draw);

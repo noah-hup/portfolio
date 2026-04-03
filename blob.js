@@ -188,6 +188,7 @@
 
     /* ── Render loop ── */
     const clock = new THREE.Clock();
+    let lastBlurPx = -1; // sentinel — skip filter write when unchanged
     function tick() {
       requestAnimationFrame(tick);
 
@@ -195,13 +196,16 @@
       mat.uniforms.uTime.value = elapsed;
 
       mesh.rotation.x = 0.2;                 // fixer Winkel (optional)
-  mesh.rotation.y = elapsed * 0.05; 
+      mesh.rotation.y = elapsed * 0.05;
 
       // Scroll-based scale-down + blur (stays visible, goes out of focus)
       const s = 1 - scrollT * 0.25;
       mesh.scale.setScalar(s);
-      const blurPx = scrollT * 10;
-      canvas.style.filter = blurPx > 0 ? `blur(${blurPx.toFixed(1)}px)` : '';
+      const blurPx = Math.round(scrollT * 100) / 10; // 1 decimal, quantised to avoid micro-writes
+      if (blurPx !== lastBlurPx) {
+        canvas.style.filter = blurPx > 0 ? `blur(${blurPx}px)` : '';
+        lastBlurPx = blurPx;
+      }
 
       renderer.render(scene, camera);
     }
