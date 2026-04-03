@@ -38,23 +38,6 @@
   document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
   document.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
 
-  // Touch support — treat active touch point as cursor
-  let touchFadeTimer = null;
-  function onTouchMove(e) {
-    const t = e.touches[0];
-    mouse.x = t.clientX;
-    mouse.y = t.clientY;
-    if (touchFadeTimer) { clearTimeout(touchFadeTimer); touchFadeTimer = null; }
-  }
-  function onTouchEnd() {
-    // Fade out after a short delay so the last lines are visible briefly
-    touchFadeTimer = setTimeout(() => { mouse.x = -9999; mouse.y = -9999; }, 600);
-  }
-  document.addEventListener('touchstart', onTouchMove, { passive: true });
-  document.addEventListener('touchmove',  onTouchMove, { passive: true });
-  document.addEventListener('touchend',   onTouchEnd,  { passive: true });
-  document.addEventListener('touchcancel', onTouchEnd, { passive: true });
-
   function resize() {
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
