@@ -160,17 +160,37 @@ endmodule`
   about: {
     bio: "I'm Noah — a CS & PE student based in Paderborn, Germany. I build things at the intersection of hardware, software, and sport science.",
     photography: [
-  { src: "media/photography/01.jpg" },
-  { src: "media/photography/01.jpg", aspect: 3/2 },
-  { src: "media/photography/01.jpg", aspect: 2/3 },
-  { src: "media/photography/01.jpg", aspect: 1 },
-  { src: "media/photography/01.jpg", aspect: 16/9 },
-  { src: "media/photography/01.jpg", aspect: 9/16 },
-  { src: "media/photography/01.jpg", aspect: 3/1 },
-  { src: "media/photography/01.jpg", aspect: 1/3 },
-  { src: "media/photography/01.jpg", aspect: 4/5 },
-  { src: "media/photography/01.jpg", aspect: 5/4 },
-  { src: "media/photography/01.jpg", aspect: 7/2 },
-]
+
+      { type: "group", label: "Rome" },
+      { src: "media/photography/rome/02.webp", aspect: 2/3},
+      {src: "media/photography/rome/01.webp", aspect: 2/3},
+      {src: "media/photography/rome/06.webp", aspect: 16/9},
+      {src: "media/photography/rome/03.webp", aspect: 3/2.723},
+      
+
+      { type: "group", label: "swan" },
+      { src: "media/photography/swan/01.webp", aspect: 2/3},
+      { src: "media/photography/swan/02.webp", aspect: 3/2},
+      { src: "media/photography/swan/03.webp", aspect: 3/2.41},
+      { src: "media/photography/swan/04.webp", aspect: 3/2.41},
+      { src: "media/photography/swan/07.webp", aspect: 3/2},
+
+      { type: "group", label: "garden" },
+      { src: "media/photography/garden/03.webp", aspect: 3/2},
+      { src: "media/photography/garden/04.webp", aspect: 3/2},      
+      { src: "media/photography/garden/02.webp", aspect: 3/2},
+
+
+      { type: "group", label: "snowy park" },
+      { src: "media/photography/snowy-park/02.webp", aspect: 3/2},
+      { src: "media/photography/snowy-park/05.webp", aspect: 3/2},
+      { src: "media/photography/snowy-park/04.webp", aspect: 3/2},
+      
+      { type: "group", label: "golden snow" },
+      { src: "media/photography/golden-snow/07.webp", aspect: 3/2},
+      { src: "media/photography/golden-snow/06.webp", aspect: 3/2},
+      { src: "media/photography/golden-snow/08.webp", aspect: 3/2},
+
+    ]
   }
 };

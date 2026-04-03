@@ -37,6 +37,9 @@
     </div>
   </header>
 
+  <!-- Group scroll nav -->
+  <nav class="group-nav" id="group-nav" aria-label="Sections"></nav>
+
   <!-- Masonry / grid -->
   <main class="photo-main" id="photo-main"></main>
 
@@ -56,176 +59,237 @@
   <script src="grain.js"></script>
   <script src="portfolio-data.js"></script>
   <script>
-    /* ── Normalise entries: always { src, aspect? } ── */
-    const photos = DATA.about.photography.map(e =>
-      typeof e === 'string' ? { src: e } : e
-    );
-
     const GAP = 10; // px between tiles
-    const container = document.getElementById('photo-main');
+    const mainEl = document.getElementById('photo-main');
 
-    /* ── Column count based on viewport ── */
-    function colCount() {
-      const w = container.clientWidth;
+    /* ── Split the flat array into groups ── */
+    const rawEntries = DATA.about.photography;
+    const groups = []; // [ { label, photos: [] }, ... ]
+
+    rawEntries.forEach(e => {
+      const entry = typeof e === 'string' ? { src: e } : e;
+      if (entry.type === 'group') {
+        groups.push({ label: entry.label, photos: [] });
+      } else {
+        if (groups.length === 0) groups.push({ label: null, photos: [] });
+        groups[groups.length - 1].photos.push(entry);
+      }
+    });
+
+    /* ── Per-group masonry state ── */
+    // groupStates[i] = { container, tiles, pending }
+    const groupStates = [];
+
+    /* ── Build DOM: one section per group ── */
+    groups.forEach((group, gi) => {
+      const section = document.createElement('div');
+      section.className = 'photo-group';
+
+      if (group.label) {
+        const heading = document.createElement('h2');
+        heading.className = 'photo-group-label';
+        heading.textContent = group.label;
+        section.appendChild(heading);
+      }
+
+      const gridEl = document.createElement('div');
+      gridEl.className = 'photo-grid';
+      section.appendChild(gridEl);
+      mainEl.appendChild(section);
+
+      const tiles = group.photos.map((entry, i) => {
+        const div = document.createElement('div');
+        div.className = 'photo-tile';
+        div.style.animationDelay = (0.04 + i * 0.06) + 's';
+        div.style.position = 'absolute';
+        const img = document.createElement('img');
+        img.src = entry.src;
+        img.alt = entry.alt || 'Photo ' + (i + 1);
+        img.loading = 'lazy';
+        div.appendChild(img);
+        div.addEventListener('click', () => {
+          const visibleTiles = tiles.filter(t => !t.hidden);
+          const vi = visibleTiles.indexOf(tiles[i]);
+          if (vi !== -1) openLightbox(vi, visibleTiles);
+        });
+        gridEl.appendChild(div);
+        return { div, entry, aspect: entry.aspect || null, hidden: false };
+      });
+
+      const state = { gridEl, tiles, pending: tiles.filter(t => t.aspect === null).length };
+      groupStates.push(state);
+
+      function tryLayout() {
+        if (state.pending > 0) return;
+        layoutGroup(state);
+      }
+
+      tiles.forEach(t => {
+        if (t.aspect !== null) return;
+        const img = t.div.querySelector('img');
+        if (img.complete && img.naturalWidth) {
+          t.aspect = img.naturalWidth / img.naturalHeight || 1;
+          state.pending--;
+          tryLayout();
+        } else {
+          img.addEventListener('load', () => {
+            t.aspect = img.naturalWidth / img.naturalHeight || 1;
+            state.pending--;
+            tryLayout();
+          });
+          img.addEventListener('error', () => {
+            t.aspect = 1;
+            state.pending--;
+            tryLayout();
+          });
+        }
+      });
+
+      if (state.pending === 0) layoutGroup(state);
+    });
+
+    /* ── Column count based on grid element width ── */
+    function colCount(w) {
       if (w >= 900) return 3;
       if (w >= 520) return 2;
       return 1;
     }
 
-    /* ── Build tiles (DOM), resolve aspect ratios, then layout ── */
-    const tiles = photos.map((entry, i) => {
-      const div = document.createElement('div');
-      div.className = 'photo-tile';
-      div.style.animationDelay = (0.04 + i * 0.06) + 's';
-      div.style.position = 'absolute';
-      const img = document.createElement('img');
-      img.src = entry.src;
-      img.alt = 'Photo ' + (i + 1);
-      img.loading = 'lazy';
-      div.appendChild(img);
-      div.addEventListener('click', () => openLightbox(i));
-      container.appendChild(div);
-      return { div, entry, aspect: entry.aspect || null };
-    });
-
-    /* ── Resolve aspect ratios for tiles that need auto-detection ── */
-    let pending = tiles.filter(t => t.aspect === null).length;
-
-    function tryLayout() {
-      if (pending > 0) return; // wait until all aspects known
-      layout();
-    }
-
-    tiles.forEach(t => {
-      if (t.aspect !== null) return;
-      const img = t.div.querySelector('img');
-      if (img.complete && img.naturalWidth) {
-        t.aspect = img.naturalWidth / img.naturalHeight;
-        pending--;
-        tryLayout();
-      } else {
-        img.addEventListener('load', () => {
-          t.aspect = img.naturalWidth / img.naturalHeight || 1;
-          pending--;
-          tryLayout();
-        });
-        img.addEventListener('error', () => {
-          t.aspect = 1;
-          pending--;
-          tryLayout();
-        });
-      }
-    });
-
-    /* If all aspects were pre-declared, layout immediately */
-    if (pending === 0) layout();
-
-    /* ── Column-packing layout (shortest-column) ── */
-    function layout() {
-      const cols = colCount();
-      const totalW = container.clientWidth;
-      const colW = (totalW - GAP * (cols - 1)) / cols;
-
-      // Track the current fill height of each column
+    /* ── Column-packing layout for a single group ── */
+    function layoutGroup(state) {
+      const totalW = state.gridEl.clientWidth;
+      const cols   = colCount(totalW);
+      const colW   = (totalW - GAP * (cols - 1)) / cols;
       const colHeights = Array(cols).fill(0);
 
-      tiles.forEach(t => {
-        // Pick the shortest column
+      state.tiles.forEach(t => {
+        if (t.hidden) return;
         let shortest = 0;
         for (let c = 1; c < cols; c++) {
           if (colHeights[c] < colHeights[shortest]) shortest = c;
         }
-
-        const aspect = t.aspect || 1;
-        const h = colW / aspect;
-        const x = shortest * (colW + GAP);
-        const y = colHeights[shortest];
-
-        t.div.style.left   = x + 'px';
-        t.div.style.top    = y + 'px';
+        const h = colW / (t.aspect || 1);
+        t.div.style.left   = shortest * (colW + GAP) + 'px';
+        t.div.style.top    = colHeights[shortest] + 'px';
         t.div.style.width  = colW + 'px';
         t.div.style.height = h + 'px';
-
         colHeights[shortest] += h + GAP;
       });
 
-      // Set container height to tallest column
-      container.style.height = Math.max(...colHeights) + 'px';
+      state.gridEl.style.height = Math.max(...colHeights) + 'px';
+    }
+
+    function layoutAll() {
+      groupStates.forEach(s => { if (s.pending === 0) layoutGroup(s); });
     }
 
     /* ── Re-layout on resize ── */
     let resizeTimer;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => { if (pending === 0) layout(); }, 120);
+      resizeTimer = setTimeout(layoutAll, 120);
     }, { passive: true });
 
     /* ── Nav shrink on scroll ── */
     const projNav = document.getElementById('project-nav');
-    window.addEventListener('scroll', () => {
-      projNav.classList.toggle('scrolled', window.scrollY > 60);
-    }, { passive: true });
 
-    /* ── Scroll-driven fly-in/out per tile ── */
-    const FADE_ZONE  = 180; // px from viewport edge where transition starts
-    const MAX_SHIFT  = 14;  // px of translateY at the edge
-    const MAX_FADE   = 0.5; // opacity at the edge (fully visible = 0.82)
+    /* ── Group scroll nav ── */
+    const groupNav = document.getElementById('group-nav');
 
-    function easeInOut(x) {
-      return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
-    }
+    // Build one nav item per labelled group; store ref to its section el
+    const navItems = []; // { el, sectionEl, label }
+    groupStates.forEach((state, gi) => {
+      if (!groups[gi].label) return;
+      const btn = document.createElement('button');
+      btn.className = 'group-nav-item';
+      btn.textContent = groups[gi].label;
+      btn.addEventListener('click', () => {
+        state.gridEl.closest('.photo-group').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      groupNav.appendChild(btn);
+      navItems.push({ el: btn, sectionEl: state.gridEl.closest('.photo-group'), label: groups[gi].label });
+    });
 
-    function updateTileVisibility() {
-      const vTop    = window.scrollY;
-      const vBottom = vTop + window.innerHeight;
-      const contTop = container.offsetTop;
+    // Opacity/blur by distance from active index
+    // dist: 0=active, 1=±1, 2=±2, 3+=hidden
+    const DIST_STYLE = [
+      { opacity: 1,    blur: 0,   scale: 1     },   // active
+      { opacity: 0.55, blur: 0,   scale: 0.95  },   // ±1
+      { opacity: 0.2,  blur: 2,   scale: 0.9   },   // ±2
+      { opacity: 0,    blur: 6,   scale: 0.85  },   // ±3+ (invisible)
+    ];
 
-      tiles.forEach(t => {
-        const el      = t.div;
-        const tTop    = parseFloat(el.style.top)    + contTop;
-        const tBottom = tTop + parseFloat(el.style.height || 0);
+    let activeGroupIdx = 0;
 
-        // raw progress: 0 = edge, 1 = fully inside
-        const fromTop    = tTop    - vTop;
-        const fromBottom = vBottom - tBottom;
-
-        let progress = 1;
-        let dir = 0; // -1 top edge, +1 bottom edge
-
-        if (fromBottom < FADE_ZONE && fromBottom > -parseFloat(el.style.height || FADE_ZONE)) {
-          const p = Math.max(0, fromBottom / FADE_ZONE);
-          if (p < progress) { progress = p; dir = 1; }
-        }
-        if (fromTop < FADE_ZONE && fromTop > -parseFloat(el.style.height || FADE_ZONE)) {
-          const p = Math.max(0, fromTop / FADE_ZONE);
-          if (p < progress) { progress = p; dir = -1; }
-        }
-
-        const eased   = easeInOut(progress);
-        const opacity = MAX_FADE + eased * (0.82 - MAX_FADE);
-        const shift   = dir * (1 - eased) * MAX_SHIFT;
-
-        el.style.opacity   = opacity.toFixed(3);
-        el.style.transform = shift ? `translateY(${shift.toFixed(2)}px)` : '';
+    function updateNavItems() {
+      navItems.forEach((item, i) => {
+        const dist = Math.min(Math.abs(i - activeGroupIdx), 3);
+        const s = DIST_STYLE[dist];
+        item.el.style.opacity   = s.opacity;
+        item.el.style.filter    = s.blur > 0 ? `blur(${s.blur}px)` : '';
+        item.el.style.transform = `scale(${s.scale})`;
+        item.el.classList.toggle('active', dist === 0);
+        // pointer-events: off for invisible items
+        item.el.style.pointerEvents = dist >= 3 ? 'none' : '';
       });
     }
 
-    function scrollLoop() {
-      updateTileVisibility();
-      requestAnimationFrame(scrollLoop);
+    function findActiveGroup() {
+      // Active = the group whose section top is closest to 40% down the viewport
+      const trigger = window.scrollY + window.innerHeight * 0.4;
+      let best = 0;
+      navItems.forEach((item, i) => {
+        const top = item.sectionEl.getBoundingClientRect().top + window.scrollY;
+        if (top <= trigger) best = i;
+      });
+      return best;
     }
-    requestAnimationFrame(scrollLoop);
 
-    /* ── Lightbox ── */
+    updateNavItems();
+
+    // Show/hide nav on scroll activity
+    let navHideTimer;
+    let lastScrollY = window.scrollY;
+    let navVisible = false;
+
+    function showNav() {
+      if (!navVisible) {
+        navVisible = true;
+        groupNav.classList.add('visible');
+      }
+      clearTimeout(navHideTimer);
+      navHideTimer = setTimeout(() => {
+        navVisible = false;
+        groupNav.classList.remove('visible');
+      }, 1400);
+    }
+
+    window.addEventListener('scroll', () => {
+      projNav.classList.toggle('scrolled', window.scrollY > 60);
+
+      // Only show nav after hero is past
+      if (window.scrollY > 120) showNav();
+
+      const newActive = findActiveGroup();
+      if (newActive !== activeGroupIdx) {
+        activeGroupIdx = newActive;
+        updateNavItems();
+      }
+      lastScrollY = window.scrollY;
+    }, { passive: true });
+
+    /* ── Lightbox (operates on visible subset) ── */
+    let currentVisible = [];
     let current = 0;
     const lightbox  = document.getElementById('lightbox');
     const lbImg     = document.getElementById('lightbox-img');
     const lbCounter = document.getElementById('lightbox-counter');
 
-    function openLightbox(i) {
+    function openLightbox(i, visibleTiles) {
+      currentVisible = visibleTiles;
       current = i;
-      lbImg.src = photos[i].src;
-      lbCounter.textContent = (i + 1) + ' / ' + photos.length;
+      lbImg.src = currentVisible[i].entry.src;
+      lbCounter.textContent = (i + 1) + ' / ' + currentVisible.length;
       lightbox.classList.add('open');
       lightbox.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
@@ -237,8 +301,8 @@
       document.body.style.overflow = '';
     }
 
-    function showPrev() { openLightbox((current - 1 + photos.length) % photos.length); }
-    function showNext() { openLightbox((current + 1) % photos.length); }
+    function showPrev() { openLightbox((current - 1 + currentVisible.length) % currentVisible.length); }
+    function showNext() { openLightbox((current + 1) % currentVisible.length); }
 
     document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
     document.getElementById('lightbox-prev').addEventListener('click', showPrev);

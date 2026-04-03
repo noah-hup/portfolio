@@ -34,6 +34,7 @@
     <div class="particle"></div>
     <div class="particle"></div>
     <div class="particle"></div>
+    
   </div>
 
   <!-- Hero -->
@@ -42,7 +43,7 @@
       <div class="nav-left">
         <a href="#resume">Resume</a>
         <a href="#projects">Projects</a>
-        <a href="#about">About</a>
+        <a href="#about">About Me</a>
       </div>
       <div class="nav-right">
         <a href="mailto:noah.hupfeld@gmail.com">Mail</a>
@@ -87,7 +88,7 @@
     <div class="section-inner">
       <div class="section-header">
         <span class="section-kicker">03</span>
-        <h2 class="section-title">About</h2>
+        <h2 class="section-title">About Me</h2>
       </div>
       <div class="about-body">
         <p class="about-bio" id="about-bio"></p>
@@ -96,10 +97,11 @@
     </div>
   </section>
 
-  <footer class="site-footer">© 2025 Noah Hupfeld</footer>
+  <footer class="site-footer">© 2026 Noah Hupfeld</footer>
 
   <script src="blob.js"></script>
   <script src="grain.js"></script>
+  <script src="cursor.js"></script>
   <script src="portfolio-data.js"></script>
   <script>
     /* ── Split letters & stagger reveal ── */
@@ -299,10 +301,12 @@
     photoCard.style.color = 'inherit';
     photoCard.style.display = 'block';
     photoCard.innerHTML = `
+      <div class="hobby-card-cover">
+        <img src="media/photography/swan02.jpg" alt="Photography" loading="lazy">
+      </div>
       <div class="hobby-card-header">
         <span class="hobby-card-title">Photography</span>
         <span class="hobby-card-kicker">Visual</span>
-        <span class="hobby-card-arrow">↗</span>
       </div>`;
     hobbyCardsContainer.appendChild(photoCard);
 

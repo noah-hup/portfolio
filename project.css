@@ -100,7 +100,7 @@
 .proj-title {
   font-family: 'Syne', sans-serif;
   font-weight: 800;
-  font-size: clamp(2.4rem, 5vw, 4.5rem);
+  font-size: clamp(1.8rem, 4vw, 4.5rem);
   line-height: 1.05;
   letter-spacing: -0.03em;
   background: linear-gradient(135deg, #f5f6ff 30%, #d1e1e3 80%, #b2c0c0 100%);
