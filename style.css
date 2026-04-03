@@ -235,7 +235,7 @@ nav a:hover { color: rgba(200, 235, 242, 0.85); }
 .name-title {
   font-family: 'Syne', sans-serif;
   font-weight: 800;
-  font-size: clamp(2.2rem, 6vw, 9rem);
+  font-size: clamp(2.2rem, 9vw, 9rem);
   line-height: 1;
   letter-spacing: -0.02em;
   user-select: none;
