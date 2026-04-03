@@ -1,39 +1,61 @@
 /* ── 3D Organic Blob ── */
 (function () {
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js';
-  s.onload = initBlob;
-  document.head.appendChild(s);
+  let active = false;
+  let rafId  = null;
+  let resizeHandler = null;
+  let scrollHandler = null;
+
+  function loadThree(cb) {
+    if (window.THREE) { cb(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js';
+    s.onload = cb;
+    document.head.appendChild(s);
+  }
 
   function initBlob() {
-    /* ── Canvas ── */
+    if (active) return;
+    active = true;
+
+    /* ── Canvas setup ── */
     const canvas = document.createElement('canvas');
     canvas.id = 'blob-canvas';
     canvas.setAttribute('aria-hidden', 'true');
+    // Render at fixed size; CSS scales it — GPU work is constant regardless of screen size
+    const RENDER_SIZE = 600;
     Object.assign(canvas.style, {
-      position: 'fixed', inset: '0',
-      width: '100%', height: '100%',
-      zIndex: '0', pointerEvents: 'none',
+      position:  'fixed',
+      top:       '50%',
+      left:      '50%',
+      width:     '100vmin',
+      height:    '100vmin',
+      transform: 'translate(-50%, -50%)',
+      zIndex:    '0',
+      pointerEvents: 'none',
     });
     const noiseCanvas = document.getElementById('noise-canvas');
     noiseCanvas.parentNode.insertBefore(canvas, noiseCanvas.nextSibling);
 
     /* ── Renderer ── */
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    const nativeDPR = Math.min(window.devicePixelRatio, 2);
-    renderer.setPixelRatio(nativeDPR);
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+    renderer.setPixelRatio(1);
+    renderer.setSize(RENDER_SIZE, RENDER_SIZE);
 
     /* ── Scene / Camera ── */
     const scene  = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.z = 4;
 
-    /* ── Shared simplex noise GLSL ── */
-    const snoiseFn = `
-      vec3 mod289v3(vec3 x){ return x - floor(x*(1./289.))*289.; }
-      vec4 mod289v4(vec4 x){ return x - floor(x*(1./289.))*289.; }
-      vec4 permute(vec4 x){ return mod289v4(((x*34.)+1.)*x); }
+    /* ── Vertex shader ── */
+    const vertShader = `
+      uniform float uTime;
+      varying vec3  vNormal;
+      varying vec3  vPosition;
+      varying float vNoise;
+
+      vec3 mod289(vec3 x){ return x - floor(x*(1./289.))*289.; }
+      vec4 mod289(vec4 x){ return x - floor(x*(1./289.))*289.; }
+      vec4 permute(vec4 x){ return mod289(((x*34.)+1.)*x); }
       vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314*r; }
       float snoise(vec3 v){
         const vec2 C = vec2(1./6., 1./3.);
@@ -47,7 +69,7 @@
         vec3 x1 = x0 - i1 + C.xxx;
         vec3 x2 = x0 - i2 + C.yyy;
         vec3 x3 = x0 - D.yyy;
-        i = mod289v3(i);
+        i = mod289(i);
         vec4 p = permute(permute(permute(
           i.z + vec4(0.,i1.z,i2.z,1.))
           + i.y + vec4(0.,i1.y,i2.y,1.))
@@ -77,9 +99,23 @@
         m = m*m;
         return 42.*dot(m*m, vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
       }
+
+      void main(){
+        vNormal   = normalize(normalMatrix * normal);
+        vPosition = position;
+        float t  = uTime * 0.18;
+        float n1 = snoise(position * 1.6  + vec3(t*0.7,   t*0.5,  t*0.3));
+        float n2 = snoise(position * 3.2  + vec3(-t*0.4,  t*0.6, -t*0.5)) * 0.40;
+        float n3 = snoise(position * 6.0  + vec3(t*0.3,  -t*0.4,  t*0.7)) * 0.15;
+        float n4 = snoise(position * 14.0 + vec3(t*0.2,   t*0.3, -t*0.2)) * 0.06;
+        float n5 = snoise(position * 28.0 + vec3(-t*0.15, t*0.1,  t*0.25)) * 0.03;
+        vNoise = n3 + n4 + n5;
+        vec3 newPos = position + normal * (n1+n2+n3+n4+n5) * 0.28;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+      }
     `;
 
-    /* ── Fragment shader (shared) ── */
+    /* ── Fragment shader ── */
     const fragShader = `
       varying vec3  vNormal;
       varying vec3  vPosition;
@@ -94,131 +130,45 @@
         vec3 col = mix(darkCol, edgeCol, fresnel * fresnel);
         col      = mix(col, midCol, midBand * 0.5);
         col     += edgeCol * smoothstep(0.72, 1.0, fresnel) * 0.6;
-        col     += vec3(vNoise * 3.0 * 0.13);
-        col     += vec3(abs(vNoise) * smoothstep(0.2, 0.6, fresnel) * 0.35);
+        float grain   = vNoise * 3.0;
+        col += vec3(grain * 0.13);
+        col += vec3(abs(vNoise) * smoothstep(0.2, 0.6, fresnel) * 0.35);
         float alpha = smoothstep(0.0, 0.18, 1.0 - fresnel * 0.3);
         gl_FragColor = vec4(col, alpha * 0.92);
       }
     `;
 
-    /* ── HQ vertex shader: 5 noise octaves ── */
-    const vertHQ = snoiseFn + `
-      uniform float uTime;
-      varying vec3  vNormal;
-      varying vec3  vPosition;
-      varying float vNoise;
-      void main(){
-        vNormal   = normalize(normalMatrix * normal);
-        vPosition = position;
-        float t  = uTime * 0.18;
-        float n1 = snoise(position * 1.6  + vec3(t*0.7,   t*0.5,  t*0.3));
-        float n2 = snoise(position * 3.2  + vec3(-t*0.4,  t*0.6, -t*0.5))  * 0.40;
-        float n3 = snoise(position * 6.0  + vec3(t*0.3,  -t*0.4,  t*0.7))  * 0.15;
-        float n4 = snoise(position * 14.0 + vec3(t*0.2,   t*0.3, -t*0.2))  * 0.06;
-        float n5 = snoise(position * 28.0 + vec3(-t*0.15, t*0.1,  t*0.25)) * 0.03;
-        vNoise = n3 + n4 + n5;
-        vec3 newPos = position + normal * (n1+n2+n3+n4+n5) * 0.28;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
-      }
-    `;
-
-    /* ── LQ vertex shader: 1 noise octave ── */
-    const vertLQ = snoiseFn + `
-      uniform float uTime;
-      varying vec3  vNormal;
-      varying vec3  vPosition;
-      varying float vNoise;
-      void main(){
-        vNormal   = normalize(normalMatrix * normal);
-        vPosition = position;
-        float t  = uTime * 0.18;
-        float n1 = snoise(position * 1.6 + vec3(t*0.7, t*0.5, t*0.3));
-        vNoise = 0.0;
-        vec3 newPos = position + normal * n1 * 0.28;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
-      }
-    `;
-
-    function makeMat(vert) {
-      return new THREE.ShaderMaterial({
-        vertexShader: vert, fragmentShader: fragShader,
-        transparent: true, side: THREE.FrontSide,
-        uniforms: { uTime: { value: 0 } },
-      });
-    }
-    const matHQ = makeMat(vertHQ);
-    const matLQ = makeMat(vertLQ);
-
-    /* ── Geometry pool ── */
-    const geoCache = {};
-    function getGeo(detail) {
-      const steps = [4, 8, 16, 32, 64];
-      const sub   = steps[Math.round(detail * (steps.length - 1))];
-      if (!geoCache[sub]) geoCache[sub] = new THREE.IcosahedronGeometry(1, sub);
-      return geoCache[sub];
-    }
-
-    const mesh = new THREE.Mesh(getGeo(1.0), matHQ);
-    scene.add(mesh);
-
-    /* ── Detail state ── */
-    let frameTarget = 60; // fps cap — throttled in LQ mode
-
-    function applyDetail(d) {
-      mesh.geometry = getGeo(d);
-      mesh.material = d < 0.5 ? matLQ : matHQ;
-      // Drop pixel ratio: 1.0 at full detail → 0.4 at zero
-      renderer.setPixelRatio(0.4 + d * (nativeDPR - 0.4));
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      // Throttle frame rate at low detail
-      frameTarget = d < 0.5 ? 30 : 60;
-    }
-
-    /* ── Performance slider ── */
-    const perfSlider = document.getElementById('perf-slider');
-    if (perfSlider) {
-      perfSlider.addEventListener('input', () => {
-        applyDetail(1 - perfSlider.value / 100);
-      });
-    }
-
-    /* ── Mouse ── */
-    document.addEventListener('mousemove', e => {
-      // kept for potential future use
-      void e;
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: vertShader, fragmentShader: fragShader,
+      transparent: true, side: THREE.FrontSide,
+      uniforms: { uTime: { value: 0 } },
     });
+
+    const geo  = new THREE.IcosahedronGeometry(1, 64);
+    const mesh = new THREE.Mesh(geo, mat);
+    scene.add(mesh);
 
     /* ── Scroll fade ── */
     let scrollT = 0;
-    window.addEventListener('scroll', () => {
+    scrollHandler = () => {
       scrollT = Math.min(window.scrollY / (window.innerHeight * 0.8), 1);
-    }, { passive: true });
+    };
+    window.addEventListener('scroll', scrollHandler, { passive: true });
 
-    /* ── Resize ── */
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    /* ── Resize — no-op: renderer is fixed-size, CSS scales ── */
+    resizeHandler = () => {};
+    window.addEventListener('resize', resizeHandler);
 
-    /* ── Render loop with frame throttle ── */
+    /* ── Render loop ── */
     const clock = new THREE.Clock();
-    let lastBlurPx  = -1;
-    let lastFrameTs = 0;
+    let lastBlurPx = -1;
 
-    function tick(ts) {
-      requestAnimationFrame(tick);
-
-      // Frame throttle
-      const minInterval = 1000 / frameTarget;
-      if (ts - lastFrameTs < minInterval) return;
-      lastFrameTs = ts;
-
+    function tick() {
+      rafId = requestAnimationFrame(tick);
       const elapsed = clock.getElapsedTime();
-      mesh.material.uniforms.uTime.value = elapsed;
+      mat.uniforms.uTime.value = elapsed;
       mesh.rotation.x = 0.2;
       mesh.rotation.y = elapsed * 0.05;
-
       const sc = 1 - scrollT * 0.25;
       mesh.scale.setScalar(sc);
       const blurPx = Math.round(scrollT * 100) / 10;
@@ -226,9 +176,33 @@
         canvas.style.filter = blurPx > 0 ? `blur(${blurPx}px)` : '';
         lastBlurPx = blurPx;
       }
-
       renderer.render(scene, camera);
     }
-    requestAnimationFrame(tick);
+    tick();
+
+    /* ── Store teardown on canvas for destroyBlob ── */
+    canvas._blobDestroy = () => {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+      window.removeEventListener('scroll', scrollHandler, { passive: true });
+      window.removeEventListener('resize', resizeHandler);
+      renderer.dispose();
+      mat.dispose();
+      geo.dispose();
+      canvas.remove();
+      active = false;
+    };
   }
+
+  window.blobInit = function () {
+    loadThree(initBlob);
+  };
+
+  window.blobDestroy = function () {
+    const canvas = document.getElementById('blob-canvas');
+    if (canvas && canvas._blobDestroy) canvas._blobDestroy();
+  };
+
+  // Auto-start
+  window.blobInit();
 })();

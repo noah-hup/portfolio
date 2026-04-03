@@ -41,7 +41,16 @@
   <section class="hero" id="hero">
     <nav>
       <div class="nav-left">
-        <a href="#resume">Resume</a>
+        <div class="nav-left-resume">
+          <a href="#resume">Resume</a>
+          <button id="blob-toggle" aria-pressed="true" title="Toggle 3D blob" aria-label="Toggle 3D blob">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+              <ellipse cx="7" cy="7" rx="2.5" ry="5.5" stroke="currentColor" stroke-width="1.2"/>
+              <line x1="1.5" y1="7" x2="12.5" y2="7" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+          </button>
+        </div>
         <a href="#projects">Projects</a>
         <a href="#about">Interests</a>
       </div>
@@ -50,10 +59,6 @@
         <a href="https://www.instagram.com/noah.hup/" target="_blank" rel="noopener noreferrer">Instagram</a>
       </div>
     </nav>
-    <div id="perf-center">
-      <button id="perf-toggle" aria-pressed="false" title="Toggle performance mode">Performance</button>
-      <input id="perf-slider" type="range" min="0" max="100" value="0" aria-label="Blob detail">
-    </div>
 
     <div class="name-hero">
       <p class="name-kicker">Portfolio</p>
@@ -356,6 +361,19 @@
 
     document.getElementById('photo-grid')?.remove();
     document.querySelector('.about-body').appendChild(hobbyCardsContainer);
+
+    /* ── Blob toggle ── */
+    const blobBtn = document.getElementById('blob-toggle');
+    blobBtn.addEventListener('click', () => {
+      const on = blobBtn.getAttribute('aria-pressed') === 'true';
+      if (on) {
+        window.blobDestroy();
+        blobBtn.setAttribute('aria-pressed', 'false');
+      } else {
+        window.blobInit();
+        blobBtn.setAttribute('aria-pressed', 'true');
+      }
+    });
   </script>
 </body>
 </html>

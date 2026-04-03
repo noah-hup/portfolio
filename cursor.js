@@ -149,6 +149,20 @@
     cachedLetters = Array.from(document.querySelectorAll('.name-letter'));
   });
 
+  // All interactive nodes (a, button) excluding name-letters — refreshed on resize/mutation
+  let cachedInteractive = null;
+  function getInteractive() {
+    if (cachedInteractive) return cachedInteractive;
+    cachedInteractive = Array.from(document.querySelectorAll('a, button')).filter(
+      el => !el.classList.contains('name-letter') && el.offsetParent !== null
+    );
+    return cachedInteractive;
+  }
+  window.addEventListener('resize', () => { cachedInteractive = null; });
+  // Bust cache when DOM changes (e.g. project links rendered by JS)
+  new MutationObserver(() => { cachedInteractive = null; })
+    .observe(document.body, { childList: true, subtree: true });
+
   // Reusable candidates array — avoids allocation per frame
   const cursorCandidates = [];
 
@@ -177,6 +191,16 @@
       for (let i = 0; i < limit; i++) {
         const { d, ep } = cursorCandidates[i];
         drawLine(mx, my, ep.x, ep.y, d, CURSOR_CONNECT_DIST);
+      }
+
+      // Cursor → all interactive elements (center-point, same distance threshold)
+      const interactive = getInteractive();
+      for (let i = 0; i < interactive.length; i++) {
+        const r = interactive[i].getBoundingClientRect();
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const dx = cx - mx, dy = cy - my;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < CURSOR_CONNECT_DIST) drawLine(mx, my, cx, cy, d, CURSOR_CONNECT_DIST);
       }
     }
 
