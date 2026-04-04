@@ -33,7 +33,7 @@ const DATA = {
       type: "Hardware",
       desc: "8-bit adder built from logic gates with real-time visualization via embedded web interface.",
       tags: ["Digital Logic", "ESP32", "Circuit Design", "Embedded Web Server"],
-      cover: "/media/projects/ripple-carry/led.webp",
+      cover: "media/projects/ripple-carry/led.webp",
       
       links: [
         { label: "circuit", url: "/media/projects/ripple-carry/circuit.pdf" },
