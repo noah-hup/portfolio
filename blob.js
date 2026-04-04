@@ -30,7 +30,7 @@
       width:     '100vmin',
       height:    '100vmin',
       transform: 'translate(-50%, -50%)',
-      zIndex:    '0',
+      zIndex:    '1',
       pointerEvents: 'none',
     });
     const noiseCanvas = document.getElementById('noise-canvas');
@@ -203,6 +203,5 @@
     if (canvas && canvas._blobDestroy) canvas._blobDestroy();
   };
 
-  // Auto-start
   window.blobInit();
 })();

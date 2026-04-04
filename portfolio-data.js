@@ -11,10 +11,10 @@ const DATA = {
     },
     {
       type: "education",
-      title: "B.Ed. Computer Science & Physical Education",
+      title: "University",
       org: "Universität Paderborn",
       period: "2024 – Present",
-      desc: "Bachelor of Education in Computer Science and Physical Education."
+      desc: "B.Ed. in Computer Science and Physical Education."
     },
     {
       type: "education",

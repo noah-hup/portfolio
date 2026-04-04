@@ -35,6 +35,9 @@
     cachedLetters.forEach(el => letterPixelCache.delete(el));
   });
 
+  // Disable entirely on touch-primary devices (no hover cursor)
+  if (window.matchMedia('(hover: none)').matches) return;
+
   document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
   document.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
 
@@ -151,14 +154,40 @@
 
   // All interactive nodes (a, button) excluding name-letters — refreshed on resize/mutation
   let cachedInteractive = null;
+  function isVisible(el) {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return false;
+    if (r.bottom <= 0 || r.right <= 0) return false;
+    if (r.top >= window.innerHeight || r.left >= window.innerWidth) return false;
+    // Walk up the tree — reject if any ancestor is visibility:hidden or opacity:0
+    let node = el;
+    while (node && node !== document.body) {
+      const s = window.getComputedStyle(node);
+      if (s.visibility === 'hidden' || s.display === 'none' || parseFloat(s.opacity) === 0) return false;
+      node = node.parentElement;
+    }
+    return true;
+  }
+
+  function isActionable(el) {
+    if (el.tagName === 'A') {
+      const href = el.getAttribute('href');
+      // Must have a real href — not missing, empty, or bare "#"
+      return href && href !== '#';
+    }
+    // button: must not be disabled
+    return !el.disabled;
+  }
+
   function getInteractive() {
     if (cachedInteractive) return cachedInteractive;
     cachedInteractive = Array.from(document.querySelectorAll('a, button')).filter(
-      el => !el.classList.contains('name-letter') && el.offsetParent !== null
+      el => !el.classList.contains('name-letter') && isVisible(el) && isActionable(el)
     );
     return cachedInteractive;
   }
   window.addEventListener('resize', () => { cachedInteractive = null; });
+  window.addEventListener('scroll', () => { cachedInteractive = null; }, { passive: true });
   // Bust cache when DOM changes (e.g. project links rendered by JS)
   new MutationObserver(() => { cachedInteractive = null; })
     .observe(document.body, { childList: true, subtree: true });
