@@ -33,7 +33,7 @@ const DATA = {
       type: "Hardware",
       desc: "8-bit adder built from logic gates with real-time visualization via embedded web interface.",
       tags: ["Digital Logic", "ESP32", "Circuit Design", "Embedded Web Server"],
-      cover: "media/projects/ripple-carry/led.webp",
+      cover: "/media/projects/ripple-carry/led.webp",
       
       links: [
         { label: "circuit", url: "/media/projects/ripple-carry/circuit.pdf" },
@@ -82,7 +82,7 @@ const DATA = {
       type: "Software",
       desc: "A Python-based tool for Jürgenhake Deutschland GmbH that compares unordered CSV files using composite keys and highlights differences for transparent reporting.",
       tags: ["Python", "Tkinter", "ReportLab"],
-      cover: "media/projects/csv-comparison/full.webp",
+      cover: "/media/projects/csv-comparison/full.webp",
       
       links: [
         { label: "Jürgenhake", url: "https://www.juergenhake.de" },
